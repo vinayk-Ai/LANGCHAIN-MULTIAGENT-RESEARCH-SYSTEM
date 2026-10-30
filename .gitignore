@@ -1,0 +1,8 @@
+git rm --cached .env
+git add .gitignore
+git commit --amend --no-edit
+git push origin main.env
+
+.env
+.venv
+__pycache__/

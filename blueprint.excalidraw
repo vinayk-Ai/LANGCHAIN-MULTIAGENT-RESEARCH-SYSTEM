@@ -1,0 +1,51 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor",
+  "elements": [
+    {
+      "id": "XJCmJgtH5E5Ha9SdA4SmM",
+      "type": "text",
+      "x": 250.5903561528524,
+      "y": 132.2734375,
+      "width": 200.3583221435547,
+      "height": 174.70833333333331,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "index": "a0",
+      "roundness": null,
+      "seed": 1291019301,
+      "version": 197,
+      "versionNonce": 636635045,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1793353254514,
+      "link": null,
+      "locked": false,
+      "text": "Steps :\n1. Environment setup\n2. Create Tools\n3. Create Agents\n4. Create Pipelines\n5. Run and test\n",
+      "fontSize": 19.966666666666665,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "originalText": "Steps :\n1. Environment setup\n2. Create Tools\n3. Create Agents\n4. Create Pipelines\n5. Run and test\n",
+      "autoResize": true,
+      "lineHeight": 1.25
+    }
+  ],
+  "appState": {
+    "gridSize": 20,
+    "gridStep": 5,
+    "gridModeEnabled": false,
+    "viewBackgroundColor": "#ffffff"
+  },
+  "files": {}
+}
