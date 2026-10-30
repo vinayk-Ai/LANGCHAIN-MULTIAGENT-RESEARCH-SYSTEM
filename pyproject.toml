@@ -1,0 +1,20 @@
+[project]
+name = "research-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "cr.vinay8448@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "groq>=1.7.0",
+    "pydantic>=2.14.2",
+]
+
+[project.scripts]
+research-agent = "research_agent:main"
+
+[build-system]
+requires = ["uv_build>=0.12.16,<0.13.0"]
+build-backend = "uv_build"
