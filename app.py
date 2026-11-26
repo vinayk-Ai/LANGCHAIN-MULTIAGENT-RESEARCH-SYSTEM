@@ -1,5 +1,6 @@
 import streamlit as st
 import time
+import html
 from src.agent.agent import build_search_agent, build_reader_agent, writer_chain, critic_chain
 
 # ── Page config ──────────────────────────────────────────────────────────────
@@ -32,6 +33,16 @@ html, body, [class*="css"] {
 /* ── Hide default streamlit chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 2rem 3rem 4rem; max-width: 1200px; }
+
+@media (max-width: 760px) {
+    .block-container { padding: 1rem 1rem 3rem; }
+    .hero { padding: 2rem 0 1.5rem; }
+    .hero h1 { font-size: 2.65rem; }
+    .hero-sub { font-size: 0.95rem; }
+    .input-card { padding: 1.25rem; border-radius: 16px; }
+    .section-heading { margin-top: 1.25rem; }
+    .report-panel, .feedback-panel { padding: 1.25rem; }
+}
 
 /* ── Hero header ── */
 .hero {
@@ -331,16 +342,16 @@ def step_card(num: str, title: str, state: str, desc: str = ""):
 
 
 # ── Session state init ────────────────────────────────────────────────────────
-for key in ("results", "running", "done"):
+for key in ("results", "running", "done", "error"):
     if key not in st.session_state:
-        st.session_state[key] = {} if key == "results" else False
+        st.session_state[key] = {} if key == "results" else ("" if key == "error" else False)
 
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero">
     <div class="hero-eyebrow">Multi-Agent AI System</div>
-    <h1>Researcher<span>Agent</span></h1>
+    <h1>Researcher <span>Agent</span></h1>
     <p class="hero-sub">
         Four specialized AI agents collaborate — searching, scraping, writing,
         and critiquing — to deliver a polished research report on any topic.
@@ -372,37 +383,26 @@ with col_input:
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Example chips
-    st.markdown("""
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
-        <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:#7f93ad;letter-spacing:0.1em;">
-            TRY →
-        </span>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-family:DM Mono,monospace;font-size:0.68rem;color:#7f93ad;letter-spacing:0.1em;margin:0.25rem 0 0.6rem;'>TRY A TOPIC</div>",
+        unsafe_allow_html=True,
+    )
 
     examples = [
         "Future of LLM in Tech Industry",
-        "All Lastest AI Agents in 2026",
+        "Latest AI Agents in 2026",
         "Roadmap for AGI development in next 5 years",
     ]
 
-    for ex in examples:
-        st.markdown(f"""
-        <span style="
-            background:rgba(255,255,255,0.05);
-            border:1px solid rgba(255,255,255,0.08);
-            border-radius:8px;
-            padding:0.35rem 0.8rem;
-            font-size:0.75rem;
-            color:#d8e2f0;
-            font-family:'DM Sans',sans-serif;
-            cursor:default;
-        ">
-            {ex}
-        </span>
-        """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+    example_columns = st.columns(3)
+    for example, column in zip(examples, example_columns):
+        with column:
+            st.button(
+                example,
+                key=f"example_{abs(hash(example))}",
+                use_container_width=True,
+                on_click=lambda value=example: st.session_state.update(topic_input=value),
+            )
 
 with col_pipeline:
 
@@ -412,6 +412,9 @@ with col_pipeline:
     )
 
     r = st.session_state.results
+
+    if st.session_state.error:
+        st.error(f"The research pipeline stopped: {st.session_state.error}")
     done = st.session_state.done
 
     def s(step):
@@ -470,72 +473,64 @@ if run_btn:
         st.session_state.results = {}
         st.session_state.running = True
         st.session_state.done = False
+        st.session_state.error = ""
         st.rerun()
 
 
 if st.session_state.running and not st.session_state.done:
-
     results = {}
     topic_val = st.session_state.topic_input
 
-    # ── Step 1: Search ──
-    with st.spinner("🔍 Search Agent is working…"):
+    try:
+        # ── Step 1: Search ──
+        with st.spinner("🔍 Search Agent is working…"):
+            search_agent = build_search_agent()
+            sr = search_agent.invoke({
+                "messages": [
+                    ("user", f"Find recent, reliable and detailed information about: {topic_val}")
+                ]
+            })
+            results["search"] = sr["messages"][-1].content
+            st.session_state.results = dict(results)
 
-        search_agent = build_search_agent()
+        # ── Step 2: Reader ──
+        with st.spinner("📄 Reader Agent is scraping top resources…"):
+            reader_agent = build_reader_agent()
+            rr = reader_agent.invoke({
+                "messages": [(
+                    "user",
+                    f"Based on the following search results about '{topic_val}', "
+                    f"pick the most relevant URL and scrape it for deeper content.\n\n"
+                    f"Search Results:\n{results['search'][:800]}"
+                )]
+            })
+            results["reader"] = rr["messages"][-1].content
+            st.session_state.results = dict(results)
 
-        sr = search_agent.invoke({
-            "messages": [
-                ("user",
-                 f"Find recent, reliable and detailed information about: {topic_val}")
-            ]
-        })
+        # ── Step 3: Writer ──
+        with st.spinner("✍️ Writer is drafting the report…"):
+            research_combined = (
+                f"SEARCH RESULTS:\n{results['search']}\n\n"
+                f"DETAILED SCRAPED CONTENT:\n{results['reader']}"
+            )
+            results["writer"] = writer_chain.invoke({
+                "topic": topic_val,
+                "research": research_combined
+            })
+            st.session_state.results = dict(results)
 
-        results["search"] = sr["messages"][-1].content
-        st.session_state.results = dict(results)
+        # ── Step 4: Critic ──
+        with st.spinner("🧐 Critic is reviewing the report…"):
+            results["critic"] = critic_chain.invoke({
+                "report": results["writer"]
+            })
+            st.session_state.results = dict(results)
 
-    # ── Step 2: Reader ──
-    with st.spinner("📄 Reader Agent is scraping top resources…"):
-
-        reader_agent = build_reader_agent()
-
-        rr = reader_agent.invoke({
-            "messages": [(
-                "user",
-                f"Based on the following search results about '{topic_val}', "
-                f"pick the most relevant URL and scrape it for deeper content.\n\n"
-                f"Search Results:\n{results['search'][:800]}"
-            )]
-        })
-
-        results["reader"] = rr["messages"][-1].content
-        st.session_state.results = dict(results)
-
-    # ── Step 3: Writer ──
-    with st.spinner("✍️ Writer is drafting the report…"):
-
-        research_combined = (
-            f"SEARCH RESULTS:\n{results['search']}\n\n"
-            f"DETAILED SCRAPED CONTENT:\n{results['reader']}"
-        )
-
-        results["writer"] = writer_chain.invoke({
-            "topic": topic_val,
-            "research": research_combined
-        })
-
-        st.session_state.results = dict(results)
-
-    # ── Step 4: Critic ──
-    with st.spinner("🧐 Critic is reviewing the report…"):
-
-        results["critic"] = critic_chain.invoke({
-            "report": results["writer"]
-        })
-
-        st.session_state.results = dict(results)
-
-    st.session_state.running = False
-    st.session_state.done = True
+        st.session_state.done = True
+    except Exception as exc:
+        st.session_state.error = str(exc)
+    finally:
+        st.session_state.running = False
 
     st.rerun()
 
@@ -555,6 +550,7 @@ if r:
     # Raw outputs
     if "search" in r:
         with st.expander("🔍 Search Results (raw)", expanded=False):
+            search_output = html.escape(str(r["search"]))
 
             st.markdown(
                 f'''
@@ -564,7 +560,7 @@ if r:
                     </div>
 
                     <div class="result-content">
-                        {r["search"]}
+                        {search_output}
                     </div>
                 </div>
                 ''',
@@ -573,6 +569,7 @@ if r:
 
     if "reader" in r:
         with st.expander("📄 Scraped Content (raw)", expanded=False):
+            reader_output = html.escape(str(r["reader"]))
 
             st.markdown(
                 f'''
@@ -582,7 +579,7 @@ if r:
                     </div>
 
                     <div class="result-content">
-                        {r["reader"]}
+                        {reader_output}
                     </div>
                 </div>
                 ''',
